@@ -1,1 +1,81 @@
+SQL Code for Manchester City 2021/22 Dashboard:
+
+Table 1: mancity_games
+
+create table mancity_games (
+Matchday int,
+Gamedate date,
+Home_team varchar(45),
+Away_team varchar(45),
+Home_goals int,
+Away_goals int,
+Table_standings int,
+Result varchar(5),
+Total_points int,
+Points_per_match int,
+Goal_differential int)
+
+Manually imported data from https://www.skysports.com/manchester-city-results/2021-22  into excel file and then imported excel file into table.
+The last 4 columns were added after the information was imoprted and filled in using various SQL commands.
+
+Result Column: determined if Manchester City won, loss or draw 
+update mancity_games
+set result = case when home_team = 'Manchester City' and home_goals > away_goals then 'Win'
+when away_team = 'Manchester City' and away_goals > home_goals then 'Win'
+when home_team = 'Manchester City' and home_goals = away_goals then 'Draw'
+when away_team = 'Manchester City' and away_goals = home_goals then 'Draw'
+when home_team = 'Manchester City' and away_goals > home_goals then 'Loss'
+when away_team = 'Manchester City' and home_goals > away_goals then 'Loss'
+end
+
+Points_per_match column: determines points based on result outcome (3 points for win, 1 for draw and 0 for loss)
+update mancity_games
+set points_per_match = case when result = 'Win' then 3
+when result = 'Draw' then 1
+else 0
+end
+
+Total_points: running total based on result (3 points for win, 1 for draw and 0 for loss)
+with running_total as (
+select sum(points_per_match) over (order by matchday) as total, matchday
+    from mancity_games
+)
+
+update mancity_games
+set total_points = total
+from running_total
+where mancity_games.matchday = running_total.matchday
+
+Goal_differential column: running sum of goal differential, by result in order from start of season to end (Matchday 1 to Matchday 38)
+with goal_diff_cte as (
+select matchday, sum(case when away_team = 'Manchester City' then away_goals-home_goals
+when home_team = 'Manchester City' then home_goals-away_goals
+end) over(order by matchday) as goal_diff
+from mancity_games)
+
+update mancity_games
+set goal_differential = goal_diff
+from goal_diff_cte
+where mancity_games.matchday = goal_diff_cte.matchday
+
+
+Table 2: Goal_scorers
+
+create table goal_scorers (
+matchday int,
+home_scorer varchar(45),
+away_scorer varchar(45)
+)
+
+Manually imported data from https://www.premierleague.com/matchweek/6662/table  into excel file and then imported excel file into table.
+
+Table 3: Roster
+
+create table roster(
+playername varchar(45)
+)
+
+Manually imported data from https://www.worldfootball.net/teams/manchester-city/2022/2/  into excel file and then imported excel file into table.
+
+
 
