@@ -1,0 +1,105 @@
+#Total Wins, Draws and Losses
+
+select
+sum(case when result = 'Win' then 1
+    else 0 
+    end) as wins,
+sum(case when result = 'Draw' then 1
+    else 0 
+    end) as draws,
+sum(case when result = 'Loss' then 1
+    else 0
+    end) as losses
+from mancity_games
+
+#Record vs Big 5 Teams
+
+with cte1 as (
+    select
+sum(case when home_team = 'Manchester City' and result = 'Win'
+       and away_team in ('Arsenal','Tottenham','Manchester United','Liverpool','Chelsea') then 1
+      else 0
+      end) as home_wins,
+sum(case when home_team = 'Manchester City' and result = 'Draw'
+      and away_team in ('Arsenal','Tottenham','Manchester United','Liverpool','Chelsea') then 1
+      else 0
+      end) as home_draw,
+sum(case when home_team = 'Manchester City' and result = 'Loss'
+      and away_team in ('Arsenal','Tottenham','Manchester United','Liverpool','Chelsea') then 1
+      else 0
+      end) as home_loss,
+sum(case when away_team = 'Manchester City' and result = 'Win'
+       and home_team in ('Arsenal','Tottenham','Manchester United','Liverpool','Chelsea') then 1
+      else 0
+      end) as away_wins,
+sum(case when away_team = 'Manchester City' and result = 'Draw'
+       and home_team in ('Arsenal','Tottenham','Manchester United','Liverpool','Chelsea') then 1
+      else 0
+      end) as away_draw,
+sum(case when away_team = 'Manchester City' and result = 'Loss'
+       and home_team in ('Arsenal','Tottenham','Manchester United','Liverpool','Chelsea') then 1
+      else 0
+      end) as away_loss
+from mancity_games)
+
+select home_wins+away_wins as "Wins vs Big 6", home_draw+away_draw as "Draws vs Big 6",
+home_loss+away_loss as "Loss vs Big 6"
+from cte1
+
+#Top 3 Scorers Bar Chart
+
+with cte1 as (
+    select playername, count(*) as home_total
+from mancity_games
+join goal_scorers
+using(matchday)
+join roster
+on goal_scorers.home_scorer = roster.playername
+where home_team = 'Manchester City' and home_scorer != 'NA'
+group by 1),
+
+cte2 as (
+select playername, count(*) as away_total
+from mancity_games
+join goal_scorers
+using(matchday)
+join roster
+on goal_scorers.away_scorer = roster.playername
+where away_team = 'Manchester City' and away_scorer != 'NA'
+group by 1
+)
+
+select cte1.playername, home_total+away_total as total_goals_scored
+from cte1
+join cte2
+using(playername)
+order by 2 desc
+limit 3
+
+#Longest Unbeaten Streak
+
+with cte1 as (
+    select matchday, result, 
+case when result in ('Win','Draw') and lag(result) over (order by matchday asc) = 'Loss' then 1
+    else 0
+   end new_streak
+from mancity_games),
+
+cte2 as (
+select matchday, sum(new_streak) over (order by matchday asc) as streak_no
+    from cte1
+    where result in ('Win','Draw')
+),
+
+cte3 as (
+select count(*) as num, streak_no
+    from cte2
+    group by 2)
+    
+select max(num)
+from cte3
+
+
+
+
+
